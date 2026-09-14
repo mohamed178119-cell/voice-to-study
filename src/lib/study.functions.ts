@@ -104,3 +104,71 @@ export const askStudyAssistant = createServerFn({ method: "POST" })
     const text = json.choices?.[0]?.message?.content?.trim();
     return { answer: text || "لم أتمكن من قراءة المحتوى، حاول برفع ملف أوضح." };
   });
+
+/** توليد صورة ملخّص دراسية (سبورة/إنفوجرافيك) — للمواد الدراسية فقط */
+export const generateStudyImage = createServerFn({ method: "POST" })
+  .inputValidator((input: { topic: string }) => {
+    if (!input || typeof input.topic !== "string" || !input.topic.trim())
+      throw new Error("اكتب موضوع الدرس أولًا");
+    return { topic: input.topic.trim().slice(0, 4000) };
+  })
+  .handler(async ({ data }) => {
+    const apiKey = process.env["LOVABLE_API_KEY"];
+    if (!apiKey) throw new Error("خدمة الذكاء الاصطناعي غير مُهيّأة");
+
+    const headers = {
+      "Content-Type": "application/json",
+      "Lovable-API-Key": apiKey,
+      "X-Lovable-AIG-SDK": "fetch",
+    };
+
+    // بوابة: صور دراسية فقط
+    const gate = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        model: "google/gemini-3.1-flash-lite",
+        messages: [
+          {
+            role: "system",
+            content:
+              "صنّف النص: هل هو موضوع دراسي/تعليمي (مواد مدرسية أو جامعية، علوم، رياضيات، لغات، تاريخ، أحياء...)؟ أجب بحرف واحد فقط: 1 إذا كان دراسيًا، 0 إذا لم يكن.",
+          },
+          { role: "user", content: data.topic },
+        ],
+      }),
+    });
+    const gateJson = (await gate.json().catch(() => null)) as
+      | { choices?: { message?: { content?: string } }[] }
+      | null;
+    const verdict = gateJson?.choices?.[0]?.message?.content ?? "1";
+    if (!verdict.includes("1")) {
+      throw new Error("أنا مساعد دراسي فقط، اطلب صورة لموضوع دراسي 👨‍🏫");
+    }
+
+    const imgPrompt = `صمّم صورة تعليمية عربية (إنفوجرافيك دراسي على شكل سبورة/ملصق مراجعة) تلخّص هذا الدرس:
+"""${data.topic}"""
+المطلوب: عنوان واضح بالأعلى، 4-6 نقاط رئيسية قصيرة بالعربية الفصحى، أيقونات ورسوم توضيحية بسيطة، أسهم ومخططات عند الحاجة، تصميم نظيف بألوان تعليمية هادئة (أخضر/تركواز/أبيض)، خط عربي واضح ومقروء جدًا وبلا أخطاء إملائية، بلا أي محتوى غير دراسي، اتجاه الكتابة من اليمين إلى اليسار.`;
+
+    const res = await fetch("https://ai.gateway.lovable.dev/v1/images/generations", {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        model: "google/gemini-3.1-flash-image",
+        messages: [{ role: "user", content: imgPrompt }],
+        modalities: ["image", "text"],
+      }),
+    });
+
+    if (!res.ok) {
+      const detail = await res.text();
+      if (res.status === 429) throw new Error("الطلبات كثيرة الآن، حاول بعد لحظات.");
+      if (res.status === 402) throw new Error("انتهى رصيد الذكاء الاصطناعي، يرجى إضافة رصيد.");
+      throw new Error(`تعذّر إنشاء الصورة (${res.status}): ${detail.slice(0, 200)}`);
+    }
+
+    const imgJson = (await res.json()) as { data?: { b64_json?: string }[] };
+    const b64 = imgJson.data?.[0]?.b64_json;
+    if (!b64) throw new Error("تعذّر إنشاء الصورة، حاول بصياغة أوضح للدرس.");
+    return { image: `data:image/png;base64,${b64}` };
+  });
