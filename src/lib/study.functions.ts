@@ -1,0 +1,106 @@
+import { createServerFn } from "@tanstack/react-start";
+
+export type StudyAttachment = {
+  kind: "image" | "pdf" | "audio";
+  mime: string;
+  /** base64 (بدون بادئة data:) */
+  data: string;
+  name?: string;
+};
+
+export type StudyInput = {
+  prompt: string;
+  mode?: "solve" | "summarize" | "explain";
+  attachments?: StudyAttachment[];
+};
+
+const SYSTEM_PROMPT = `أنت "المساعد الدراسي" — مدرّس ذكي ومنضبط، تتحدث العربية الفصحى المبسطة.
+
+قواعد صارمة:
+1. لا تجيب إلا على ما يتعلق بالدراسة والمناهج والمواد التعليمية (شرح، حل مسائل، تلخيص، مراجعة، امتحانات، مهارات الدراسة).
+2. أي سؤال خارج الدراسة (سياسة، رياضة، دردشة شخصية، أخبار، ترفيه...) ترفضه بلطف بجملة واحدة: "أنا مساعد دراسي فقط، اسألني في المنهج أو الدراسة وسأساعدك 👨‍🏫" ولا تضيف شيئًا آخر.
+3. التزم بالضابط المدرسي: لغة محترمة، بلا إساءة أو محتوى غير لائق، وتشجيع للطالب.
+4. رتّب الإجابة بعناوين ونقاط وخطوات مرقّمة، واكتب المعادلات بشكل واضح.
+5. عند حل سؤال: اذكر المعطيات، ثم خطوات الحل، ثم الإجابة النهائية بشكل بارز.
+6. عند التلخيص: أعطِ ملخصًا منظّمًا + أهم النقاط + أسئلة مراجعة سريعة.`;
+
+const MODE_HINT: Record<string, string> = {
+  solve: "حلّ كل الأسئلة الموجودة خطوة بخطوة مع الإجابة النهائية.",
+  summarize: "لخّص المحتوى بشكل منظم واستخرج أهم النقاط وأسئلة مراجعة.",
+  explain: "اشرح المحتوى ببساطة وبأمثلة.",
+};
+
+export const askStudyAssistant = createServerFn({ method: "POST" })
+  .inputValidator((input: StudyInput) => {
+    if (!input || typeof input.prompt !== "string") throw new Error("طلب غير صالح");
+    return input;
+  })
+  .handler(async ({ data }) => {
+    const apiKey = process.env["LOVABLE_API_KEY"];
+    if (!apiKey) throw new Error("خدمة الذكاء الاصطناعي غير مُهيّأة");
+
+    const content: unknown[] = [];
+    const hint = data.mode ? MODE_HINT[data.mode] : undefined;
+    content.push({
+      type: "text",
+      text: [data.prompt || "", hint].filter(Boolean).join("\n\n") || "ساعدني في هذا المحتوى الدراسي.",
+    });
+
+    for (const att of data.attachments ?? []) {
+      if (!att?.data) continue;
+      if (att.kind === "image") {
+        content.push({
+          type: "image_url",
+          image_url: { url: `data:${att.mime};base64,${att.data}` },
+        });
+      } else if (att.kind === "pdf") {
+        content.push({
+          type: "file",
+          file: {
+            filename: att.name || "document.pdf",
+            file_data: `data:${att.mime};base64,${att.data}`,
+          },
+        });
+      } else {
+        const format = att.mime.includes("mp4") || att.mime.includes("m4a")
+          ? "m4a"
+          : att.mime.includes("mpeg") || att.mime.includes("mp3")
+            ? "mp3"
+            : att.mime.includes("wav")
+              ? "wav"
+              : att.mime.includes("ogg")
+                ? "ogg"
+                : "webm";
+        content.push({ type: "input_audio", input_audio: { data: att.data, format } });
+      }
+    }
+
+    const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Lovable-API-Key": apiKey,
+        "X-Lovable-AIG-SDK": "fetch",
+      },
+      body: JSON.stringify({
+        model: "google/gemini-3.8-flash",
+        messages: [
+          { role: "system", content: SYSTEM_PROMPT },
+          { role: "user", content },
+        ],
+      }),
+    });
+
+    if (!res.ok) {
+      const detail = await res.text();
+      if (res.status === 429) throw new Error("الطلبات كثيرة الآن، حاول بعد لحظات.");
+      if (res.status === 402) throw new Error("انتهى رصيد الذكاء الاصطناعي، يرجى إضافة رصيد.");
+      throw new Error(`تعذّر الحصول على الإجابة (${res.status}): ${detail.slice(0, 200)}`);
+    }
+
+    const json = (await res.json()) as {
+      choices?: { message?: { content?: string } }[];
+    };
+    const text = json.choices?.[0]?.message?.content?.trim();
+    return { answer: text || "لم أتمكن من قراءة المحتوى، حاول برفع ملف أوضح." };
+  });
