@@ -27,17 +27,36 @@ jobs:
       - name: Build web app
         run: npm run build
 
+      - name: Capture static index.html from server output
+        run: |
+          if [ -d ".output/server" ]; then
+            node .output/server/index.mjs &
+            SERVER_PID=$!
+            for i in $(seq 1 20); do
+              if curl -s -o /dev/null http://localhost:3000/; then
+                break
+              fi
+              sleep 1
+            done
+            curl -s http://localhost:3000/ -o .output/public/index.html
+            kill $SERVER_PID || true
+          fi
+          if [ ! -f ".output/public/index.html" ]; then
+            echo "index.html capture failed"
+            exit 1
+          fi
+
       - name: Detect build output folder
         id: outdir
         run: |
-          if [ -d "dist" ]; then
+          if [ -f "dist/index.html" ]; then
             echo "dir=dist" >> "$GITHUB_OUTPUT"
-          elif [ -d ".output/public" ]; then
+          elif [ -f ".output/public/index.html" ]; then
             echo "dir=.output/public" >> "$GITHUB_OUTPUT"
-          elif [ -d "build" ]; then
+          elif [ -f "build/index.html" ]; then
             echo "dir=build" >> "$GITHUB_OUTPUT"
           else
-            echo "No build output folder found"
+            echo "No index.html found in build output"
             exit 1
           fi
 
