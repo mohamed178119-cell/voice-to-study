@@ -21,27 +21,10 @@ jobs:
           distribution: temurin
           java-version: 21
 
-      - name: Install dependencies
-        run: npm install
-
-      - name: Build web app
-        run: npm run build
-
-      - name: Detect build output folder
-        id: outdir
+      - name: Create dummy web dir
         run: |
-          if [ -f "dist/index.html" ]; then
-            echo "dir=dist" >> "$GITHUB_OUTPUT"
-          elif [ -f ".output/public/index.html" ]; then
-            echo "dir=.output/public" >> "$GITHUB_OUTPUT"
-          elif [ -f "build/index.html" ]; then
-            echo "dir=build" >> "$GITHUB_OUTPUT"
-          else
-            echo "No index.html found, listing .output:"
-            ls -la .output 2>/dev/null || true
-            ls -la .output/public 2>/dev/null || true
-            exit 1
-          fi
+          mkdir -p www
+          echo "<html><body>loading...</body></html>" > www/index.html
 
       - name: Install Capacitor
         run: npm install @capacitor/core @capacitor/cli @capacitor/android
@@ -52,7 +35,11 @@ jobs:
           {
             "appId": "com.mohamedsaad.voicetostudy",
             "appName": "Study Buddy AI",
-            "webDir": "${{ steps.outdir.outputs.dir }}"
+            "webDir": "www",
+            "server": {
+              "url": "https://voice-to-study.lovable.app",
+              "cleartext": true
+            }
           }
           EOF
 
