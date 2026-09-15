@@ -27,41 +27,6 @@ jobs:
       - name: Build web app
         run: npm run build
 
-      - name: Capture static index.html from server output
-        run: |
-          set +e
-          if [ -d ".output/server" ]; then
-            echo "== server dir contents =="
-            ls -la .output/server
-            PORT=3000 node .output/server/index.mjs > server.log 2>&1 &
-            SERVER_PID=$!
-            echo "started server pid=$SERVER_PID"
-            READY=0
-            for i in $(seq 1 30); do
-              if curl -s -o /dev/null http://localhost:3000/; then
-                READY=1
-                break
-              fi
-              sleep 1
-            done
-            if [ "$READY" = "1" ]; then
-              curl -s http://localhost:3000/ -o .output/public/index.html
-              echo "captured index.html ok"
-            else
-              echo "== server never responded, log: =="
-              cat server.log
-            fi
-            kill $SERVER_PID 2>/dev/null || true
-          else
-            echo "no .output/server dir, listing .output:"
-            ls -la .output || true
-          fi
-          if [ ! -f ".output/public/index.html" ]; then
-            echo "== capture failed, .output/public contents: =="
-            ls -la .output/public || true
-            exit 1
-          fi
-
       - name: Detect build output folder
         id: outdir
         run: |
@@ -72,7 +37,9 @@ jobs:
           elif [ -f "build/index.html" ]; then
             echo "dir=build" >> "$GITHUB_OUTPUT"
           else
-            echo "No index.html found in build output"
+            echo "No index.html found, listing .output:"
+            ls -la .output 2>/dev/null || true
+            ls -la .output/public 2>/dev/null || true
             exit 1
           fi
 
