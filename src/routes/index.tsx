@@ -156,7 +156,12 @@ function UploadPage() {
         </Button>
       </Card>
 
-      {answer && <AnswerCard answer={answer} />}
+      {answer && (
+        <>
+          <AnswerCard answer={answer} />
+          <StudyImageCard source={answer} />
+        </>
+      )}
     </StudyShell>
   );
 }

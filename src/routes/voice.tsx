@@ -166,23 +166,7 @@ function VoicePage() {
       {answer && (
         <>
           <AnswerCard answer={answer} />
-          <Card className="gap-4 p-6 shadow-glow">
-            <Button variant="hero" size="lg" className="w-full" disabled={imgLoading} onClick={makeImage}>
-              {imgLoading ? <Loader2 className="size-4 animate-spin" /> : <ImageIcon className="size-4" />}
-              {imgLoading ? "جارٍ رسم صورة الملخّص..." : "ولّد صورة ملخّص للحصة"}
-            </Button>
-            {image && (
-              <div className="space-y-3">
-                <img src={image} alt="صورة ملخّص دراسي للحصة" className="w-full rounded-xl border border-border" />
-                <Button variant="soft" className="w-full" asChild>
-                  <a href={image} download="ملخص-الحصة.png">
-                    <Download className="size-4" />
-                    تحميل الصورة
-                  </a>
-                </Button>
-              </div>
-            )}
-          </Card>
+          <StudyImageCard source={answer} fileName="ملخص-الحصة.png" />
         </>
       )}
     </StudyShell>
