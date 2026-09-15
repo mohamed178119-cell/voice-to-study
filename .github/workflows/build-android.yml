@@ -29,20 +29,36 @@ jobs:
 
       - name: Capture static index.html from server output
         run: |
+          set +e
           if [ -d ".output/server" ]; then
-            node .output/server/index.mjs &
+            echo "== server dir contents =="
+            ls -la .output/server
+            PORT=3000 node .output/server/index.mjs > server.log 2>&1 &
             SERVER_PID=$!
-            for i in $(seq 1 20); do
+            echo "started server pid=$SERVER_PID"
+            READY=0
+            for i in $(seq 1 30); do
               if curl -s -o /dev/null http://localhost:3000/; then
+                READY=1
                 break
               fi
               sleep 1
             done
-            curl -s http://localhost:3000/ -o .output/public/index.html
-            kill $SERVER_PID || true
+            if [ "$READY" = "1" ]; then
+              curl -s http://localhost:3000/ -o .output/public/index.html
+              echo "captured index.html ok"
+            else
+              echo "== server never responded, log: =="
+              cat server.log
+            fi
+            kill $SERVER_PID 2>/dev/null || true
+          else
+            echo "no .output/server dir, listing .output:"
+            ls -la .output || true
           fi
           if [ ! -f ".output/public/index.html" ]; then
-            echo "index.html capture failed"
+            echo "== capture failed, .output/public contents: =="
+            ls -la .output/public || true
             exit 1
           fi
 
