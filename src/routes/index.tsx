@@ -6,6 +6,7 @@ import { toast } from "sonner";
 
 import { StudyShell } from "@/components/StudyShell";
 import { AnswerCard } from "@/components/AnswerCard";
+import { StudyImageCard } from "@/components/StudyImageCard";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
@@ -156,7 +157,12 @@ function UploadPage() {
         </Button>
       </Card>
 
-      {answer && <AnswerCard answer={answer} />}
+      {answer && (
+        <>
+          <AnswerCard answer={answer} />
+          <StudyImageCard source={answer} />
+        </>
+      )}
     </StudyShell>
   );
 }
