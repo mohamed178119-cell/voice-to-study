@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { BookOpenCheck, FileText, ImageIcon, Mic, ShieldCheck, Download } from "lucide-react";
 
+import { InstallAppCard } from "@/components/InstallAppCard";
 import { StudyShell } from "@/components/StudyShell";
 import { Card } from "@/components/ui/card";
 
@@ -50,6 +51,8 @@ function FeaturesPage() {
           </Card>
         ))}
       </div>
+
+      <InstallAppCard />
 
       <Card className="mt-4 items-center gap-1 bg-hero p-6 text-center text-primary-foreground">
         <p className="text-xs opacity-90">تصميم وتطوير</p>
