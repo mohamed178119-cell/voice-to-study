@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useRef, useState } from "react";
-import { Download, Image as ImageIcon, Loader2, Mic, Square, Upload } from "lucide-react";
+import { Loader2, Mic, Square, Upload } from "lucide-react";
 import { toast } from "sonner";
 
 import { StudyShell } from "@/components/StudyShell";
@@ -9,7 +9,7 @@ import { AnswerCard } from "@/components/AnswerCard";
 import { StudyImageCard } from "@/components/StudyImageCard";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { askStudyAssistant, generateStudyImage } from "@/lib/study.functions";
+import { askStudyAssistant } from "@/lib/study.functions";
 
 export const Route = createFileRoute("/voice")({
   head: () => ({
@@ -41,28 +41,11 @@ const toBase64 = (blob: Blob) =>
 
 function VoicePage() {
   const ask = useServerFn(askStudyAssistant);
-  const genImage = useServerFn(generateStudyImage);
   const [recording, setRecording] = useState(false);
   const [clip, setClip] = useState<{ blob: Blob; url: string; name: string } | null>(null);
   const [answer, setAnswer] = useState("");
   const [loading, setLoading] = useState(false);
-  const [image, setImage] = useState("");
-  const [imgLoading, setImgLoading] = useState(false);
   const recorderRef = useRef<MediaRecorder | null>(null);
-
-  const makeImage = async () => {
-    if (!answer) return;
-    setImgLoading(true);
-    setImage("");
-    try {
-      const res = await genImage({ data: { topic: answer } });
-      setImage(res.image);
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "تعذّر إنشاء الصورة");
-    } finally {
-      setImgLoading(false);
-    }
-  };
 
   const start = async () => {
     try {
