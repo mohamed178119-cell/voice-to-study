@@ -4,6 +4,7 @@ import { useState } from "react";
 import { FileText, ImageIcon, Loader2, Send, X } from "lucide-react";
 import { toast } from "sonner";
 
+import { loadMemory, remember } from "@/lib/memory";
 import { StudyShell } from "@/components/StudyShell";
 import { AnswerCard } from "@/components/AnswerCard";
 import { StudyImageCard } from "@/components/StudyImageCard";
@@ -65,8 +66,9 @@ function UploadPage() {
           data: await readBase64(f),
         })),
       );
-      const res = await ask({ data: { prompt: prompt.trim(), mode, attachments } });
+      const res = await ask({ data: { prompt: prompt.trim(), mode, attachments, history: loadMemory() } });
       setAnswer(res.answer);
+      remember(prompt.trim() || "تحليل المرفقات", res.answer);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "حدث خطأ");
     } finally {

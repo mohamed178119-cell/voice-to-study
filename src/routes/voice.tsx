@@ -1,9 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Loader2, Mic, Square, Upload } from "lucide-react";
 import { toast } from "sonner";
 
+import { loadMemory, remember } from "@/lib/memory";
 import { StudyShell } from "@/components/StudyShell";
 import { AnswerCard } from "@/components/AnswerCard";
 import { StudyImageCard } from "@/components/StudyImageCard";
@@ -46,6 +47,29 @@ function VoicePage() {
   const [answer, setAnswer] = useState("");
   const [loading, setLoading] = useState(false);
   const recorderRef = useRef<MediaRecorder | null>(null);
+  const [micState, setMicState] = useState<"unknown" | "granted" | "denied" | "prompt">("unknown");
+
+  useEffect(() => {
+    navigator.permissions
+      ?.query({ name: "microphone" as PermissionName })
+      .then((p) => {
+        setMicState(p.state as typeof micState);
+        p.onchange = () => setMicState(p.state as typeof micState);
+      })
+      .catch(() => setMicState("prompt"));
+  }, []);
+
+  const requestMic = async () => {
+    try {
+      const s = await navigator.mediaDevices.getUserMedia({ audio: true });
+      s.getTracks().forEach((t) => t.stop());
+      setMicState("granted");
+      toast.success("تم السماح باستخدام الميكروفون");
+    } catch {
+      setMicState("denied");
+      toast.error("تم رفض الإذن، فعّله من إعدادات المتصفح");
+    }
+  };
 
   const start = async () => {
     try {
@@ -83,6 +107,7 @@ function VoicePage() {
         data: {
           prompt: "هذا تسجيل لدرس دراسي. لخّصه واستخرج أهم النقاط وأسئلة مراجعة.",
           mode: "summarize",
+          history: loadMemory(),
           attachments: [
             {
               kind: "audio",
@@ -94,6 +119,7 @@ function VoicePage() {
         },
       });
       setAnswer(res.answer);
+      remember("تلخيص تسجيل صوتي لحصة", res.answer);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "حدث خطأ");
     } finally {
@@ -107,6 +133,18 @@ function VoicePage() {
       subtitle="التسجيل المباشر للحصة أو ملف صوتي جاهز — والمساعد يلخّصه لك."
     >
       <Card className="items-center gap-5 p-6 shadow-glow">
+        {micState !== "granted" && micState !== "unknown" && (
+          <div className="w-full rounded-xl bg-secondary p-4 text-center text-sm">
+            <p className="mb-3">
+              {micState === "denied"
+                ? "الميكروفون مرفوض. فعّل الإذن من إعدادات المتصفح ثم أعد المحاولة."
+                : "يحتاج التطبيق إذن الميكروفون لتسجيل الحصة مباشرة."}
+            </p>
+            <Button size="sm" variant="hero" onClick={requestMic}>
+              <Mic className="size-4" /> السماح بالوصول للميكروفون
+            </Button>
+          </div>
+        )}
         <button
           onClick={recording ? stop : start}
           className={`flex size-28 items-center justify-center rounded-full text-primary-foreground transition-transform ${
