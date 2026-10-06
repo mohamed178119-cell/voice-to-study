@@ -45,6 +45,9 @@ jobs:
           }
           EOF
 
+      - name: Remove existing Android platform
+        run: rm -rf android
+
       - name: Add Android platform
         run: npx cap add android
 
@@ -61,7 +64,7 @@ jobs:
       - name: Microphone permission + app icon
         run: |
           M=android/app/src/main/AndroidManifest.xml
-          sed -i 's#<application#<uses-permission android:name="android.permission.RECORD_AUDIO" />\n    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />\n    <uses-feature android:name="android.hardware.microphone" android:required="false" />\n    <application#' $M
+          sed -i 's#<application#<uses-permission android:name="android.permission.RECORD_AUDIO" />\n    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />\n    <uses-feature android:name="android.hardware.microphone" android:required="false" />\n    <application#' "$M"
           mkdir -p assets
           cp public/app-icon-512.png assets/icon-only.png
           cp public/app-icon-512.png assets/icon-foreground.png
