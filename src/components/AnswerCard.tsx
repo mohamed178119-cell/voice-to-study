@@ -1,24 +1,9 @@
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Copy, Download, Printer } from "lucide-react";
+import { Copy, Download } from "lucide-react";
 import { toast } from "sonner";
 
 export function AnswerCard({ answer }: { answer: string }) {
-  const printAnswer = () => {
-    const w = window.open("", "_blank", "width=800,height=900");
-    if (!w) return;
-    w.document.write(
-      `<html dir="rtl" lang="ar"><head><meta charset="utf-8"><title>إجابة المساعد الدراسي</title>
-      <style>body{font-family:system-ui,sans-serif;padding:32px;line-height:2;white-space:pre-wrap}h1{font-size:20px}</style>
-      </head><body><h1>المساعد الدراسي — محمد سعد</h1><div>${answer
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")}</div></body></html>`,
-    );
-    w.document.close();
-    w.focus();
-    w.print();
-  };
-
   const download = () => {
     const blob = new Blob([answer], { type: "text/plain;charset=utf-8" });
     const url = URL.createObjectURL(blob);
@@ -43,9 +28,6 @@ export function AnswerCard({ answer }: { answer: string }) {
             }}
           >
             <Copy className="size-4" /> نسخ
-          </Button>
-          <Button size="sm" variant="soft" onClick={printAnswer}>
-            <Printer className="size-4" /> PDF
           </Button>
           <Button size="sm" variant="soft" onClick={download}>
             <Download className="size-4" /> تحميل
