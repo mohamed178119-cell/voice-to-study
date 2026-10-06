@@ -34,12 +34,14 @@ jobs:
           cat > capacitor.config.json << EOF
           {
             "appId": "com.mohamedsaad.voicetostudy",
-            "appName": "Study Buddy AI",
+            "appName": "المساعد الدراسي",
             "webDir": "www",
             "server": {
               "url": "https://voice-to-study.lovable.app",
               "cleartext": true
-            }
+            },
+            "backgroundColor": "#f2fbf6",
+            "android": { "allowMixedContent": false, "captureInput": true }
           }
           EOF
 
@@ -55,6 +57,15 @@ jobs:
               exclude group: 'org.jetbrains.kotlin', module: 'kotlin-stdlib-jdk8'
           }
           EOF
+
+      - name: Microphone permission + app icon
+        run: |
+          M=android/app/src/main/AndroidManifest.xml
+          sed -i 's#<application#<uses-permission android:name="android.permission.RECORD_AUDIO" />\n    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />\n    <uses-feature android:name="android.hardware.microphone" android:required="false" />\n    <application#' $M
+          mkdir -p assets
+          cp public/app-icon-512.png assets/icon-only.png
+          cp public/app-icon-512.png assets/icon-foreground.png
+          npx --yes @capacitor/assets generate --android --iconBackgroundColor '#f2fbf6' --splashBackgroundColor '#f2fbf6' || true
 
       - name: Sync Capacitor
         run: npx cap sync android
