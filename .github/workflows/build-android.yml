@@ -15,11 +15,11 @@ jobs:
         with:
           node-version: 20
 
-      - name: Setup JDK 21
+      - name: Setup JDK 17
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: 21
+          java-version: 17
 
       - name: Create dummy web dir
         run: |
@@ -51,6 +51,47 @@ jobs:
       - name: Add Android platform
         run: npx cap add android
 
+      - name: Create Android drawable resources directory
+        run: mkdir -p android/app/src/main/res/drawable
+
+      - name: Fix launcher resources
+        run: |
+          cat > android/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml <<'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+              <background android:drawable="@color/ic_launcher_background" />
+              <foreground android:drawable="@drawable/ic_launcher_foreground" />
+          </adaptive-icon>
+          EOF
+
+          cat > android/app/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml <<'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+              <background android:drawable="@color/ic_launcher_background" />
+              <foreground android:drawable="@drawable/ic_launcher_foreground" />
+          </adaptive-icon>
+          EOF
+
+          cat > android/app/src/main/res/values/colors.xml <<'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <resources>
+              <color name="ic_launcher_background">#f2fbf6</color>
+          </resources>
+          EOF
+
+          cat > android/app/src/main/res/drawable/ic_launcher_foreground.xml <<'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <vector xmlns:android="http://schemas.android.com/apk/res/android"
+              android:width="108dp"
+              android:height="108dp"
+              android:viewportWidth="108"
+              android:viewportHeight="108">
+              <path
+                  android:fillColor="#000000"
+                  android:pathData="M31.626,48.627h44.748v13.756H31.626z" />
+          </vector>
+          EOF
+
       - name: Fix Kotlin duplicate classes
         run: |
           cat >> android/app/build.gradle << 'EOF'
@@ -61,14 +102,10 @@ jobs:
           }
           EOF
 
-      - name: Microphone permission + app icon
+      - name: Add microphone permissions to manifest
         run: |
           M=android/app/src/main/AndroidManifest.xml
-          sed -i 's#<application#<uses-permission android:name="android.permission.RECORD_AUDIO" />\n    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />\n    <uses-feature android:name="android.hardware.microphone" android:required="false" />\n    <application#' "$M"
-          mkdir -p assets
-          cp public/app-icon-512.png assets/icon-only.png
-          cp public/app-icon-512.png assets/icon-foreground.png
-          npx --yes @capacitor/assets generate --android --iconBackgroundColor '#f2fbf6' --splashBackgroundColor '#f2fbf6' || true
+          sed -i '/<application/i\    <uses-permission android:name="android.permission.RECORD_AUDIO" />\n    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />\n    <uses-permission android:name="android.permission.INTERNET" />' "$M"
 
       - name: Sync Capacitor
         run: npx cap sync android
